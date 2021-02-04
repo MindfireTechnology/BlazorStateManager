@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net5.0</TargetFramework>
+		<Authors>Nate Zaugg</Authors>
+		<Description>Services that help working between different components in a Blazor application easier. These include interfaces for IStateManager which commits &amp; notifies of data changes. IStoragePersistance which allows objects to be stores in LocalStorage, Session, or Cookies. IMediator which can notify other components about certain events.</Description>
+		<Copyright>2021</Copyright>
+		<PackageProjectUrl>https://github.com/MindfireTechnology/BlazorStateManager</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/MindfireTechnology/BlazorStateManager</RepositoryUrl>
+		<PackageTags>Blazor, Mediator, StateManager, LocalStorage</PackageTags>
+		<PackageReleaseNotes>Initial Release</PackageReleaseNotes>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<Company>Mindfire Technology</Company>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+		<NoWarn>1701;1702;1998</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="5.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
+		<PackageReference Include="Microsoft.JSInterop" Version="5.0.0" />
+		<PackageReference Include="Microsoft.Net.Http.Headers" Version="2.2.8" />
+	</ItemGroup>
+
+</Project>
