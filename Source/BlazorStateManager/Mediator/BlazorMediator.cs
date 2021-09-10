@@ -97,7 +97,7 @@ namespace BlazorStateManager.Mediator
 			foreach (var topic in topicList)
 			{
 				var deadSubscriberList = new Lazy<List<SubscriberInfo>>();
-				foreach (var subscriber in topic.Subscribers)
+				foreach (var subscriber in topic.Subscribers.ToArray())
 				{
 					if (!subscriber.Subscriber.IsAlive)
 						deadSubscriberList.Value.Add(subscriber);
