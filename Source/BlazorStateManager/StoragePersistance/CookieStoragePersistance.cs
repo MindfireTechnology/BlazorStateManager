@@ -15,7 +15,7 @@ namespace BlazorStateManager.StoragePersistance
 	/// </summary>
 	public class CookieStoragePersistance : IStoragePersistance
 	{
-		protected IJSRuntime Runtime { get; }
+		protected IJSRuntime? Runtime { get; }
 
 		// TODO: Implement these some day
 		//public string Domain { get; set; }
@@ -25,10 +25,11 @@ namespace BlazorStateManager.StoragePersistance
 		//public bool Secure { get; set; }
 		//public SameSiteMode SameSite { get; set; }
 
-		public CookieStoragePersistance(IJSRuntime runtime)
-		{
-			Runtime = runtime;
-		}
+		//public CookieStoragePersistance(IJSRuntime? runtime)
+		//{
+		//	// If we don't get a IJSRuntime, then presumably we are running on the server and can access this cookie via HTTP headers
+		//	Runtime = runtime;
+		//}
 
 
 		public async ValueTask Store<T>(string name, T data)
