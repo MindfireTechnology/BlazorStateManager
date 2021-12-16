@@ -12,9 +12,9 @@ namespace BlazorStateManager.StoragePersistance
 	/// </summary>
 	public class LocalStoragePersistance : IStoragePersistance
 	{
-		protected IJSRuntime Runtime { get; }
+		protected IJSRuntime? Runtime { get; }
 
-		public LocalStoragePersistance(IJSRuntime runtime)
+		public LocalStoragePersistance(IJSRuntime? runtime)
 		{
 			Runtime = runtime;
 		}
@@ -22,17 +22,27 @@ namespace BlazorStateManager.StoragePersistance
 		public ValueTask Store<T>(string name, T data)
 		{
 			string storeData = JsonSerializer.Serialize(data);
-			return Runtime.InvokeVoidAsync("localStorage.setItem", name, storeData);
+			if (Runtime != null)
+				return Runtime.InvokeVoidAsync("localStorage.setItem", name, storeData);
+			else
+				return ValueTask.CompletedTask;
 		}
 
-		public async ValueTask<T> Retreive<T>(string name) where T : class, new()
+		public async ValueTask<T?> Retreive<T>(string name) where T : class, new()
 		{
-			string data = await Runtime.InvokeAsync<string>("localStorage.getItem", name);
+			if (Runtime != null)
+			{
+				string data = await Runtime.InvokeAsync<string>("localStorage.getItem", name);
 
-			if (string.IsNullOrWhiteSpace(data))
+				if (string.IsNullOrWhiteSpace(data))
+					return null;
+
+				return JsonSerializer.Deserialize<T>(data);
+			}
+			else
+			{
 				return null;
-
-			return JsonSerializer.Deserialize<T>(data);
+			}
 		}
 	}
 }

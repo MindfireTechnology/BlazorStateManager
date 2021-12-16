@@ -10,9 +10,9 @@ namespace BlazorStateManager.Mediator
 	public class BlazorMediator : IMediator
 	{
 		protected IList<TopicMap> Topics = new List<TopicMap>();
-		protected ILogger<BlazorMediator> Logger { get; }
+		protected ILogger<BlazorMediator>? Logger { get; }
 
-		public BlazorMediator(ILogger<BlazorMediator> logger)
+		public BlazorMediator(ILogger<BlazorMediator>? logger)
 		{
 			Logger = logger;
 		}

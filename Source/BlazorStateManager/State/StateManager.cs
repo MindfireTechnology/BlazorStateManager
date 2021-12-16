@@ -10,26 +10,33 @@ namespace BlazorStateManager.State
 
 	public class StateManager : IStateManager
 	{
-		protected IStoragePersistance Store { get; }
+		protected IStoragePersistance? Store { get; }
 		public IMediator Mediator { get; }
 
-		public StateManager(IStoragePersistance store, IMediator mediator)
+		public StateManager(IStoragePersistance? store, IMediator mediator)
 		{
 			Store = store;
 			Mediator = mediator;
 		}
 
-		public async ValueTask<T> GetState<T>() where T : class, new()
+		public async ValueTask<T?> GetState<T>() where T : class, new()
 		{
+			if (Store == null)
+				return default;
+
 			var result = await Store.Retreive<T>(typeof(T).FullName);
 			if (result == null)
 				return new();
 			else
 				return result;
+			
 		}
 
 		public async ValueTask<T> GetState<T>(string name) where T : class, new()
 		{
+			if (Store == null)
+				return default;
+
 			var result = await Store.Retreive<T>(name);
 			if (result == null)
 				return new();
