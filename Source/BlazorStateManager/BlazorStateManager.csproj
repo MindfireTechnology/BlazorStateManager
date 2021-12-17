@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
@@ -8,20 +8,33 @@
 		<PackageProjectUrl>https://github.com/MindfireTechnology/BlazorStateManager</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/MindfireTechnology/BlazorStateManager</RepositoryUrl>
 		<PackageTags>Blazor, Mediator, StateManager, LocalStorage</PackageTags>
-		<PackageReleaseNotes>Initial Release</PackageReleaseNotes>
+		<PackageReleaseNotes>Support for Server-Side rendering</PackageReleaseNotes>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<IncludeSymbols>true</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<Company>Mindfire Technology</Company>
-		<Version>1.0.1</Version>
+		<Version>1.0.3</Version>
 		<Nullable>enable</Nullable>
+		<PackageIcon>Logo - Tall Small.png</PackageIcon>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<NoWarn>1701;1702;1998</NoWarn>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Include="..\..\README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	  <None Include="..\..\Resources\Logo - Tall Small.png">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
