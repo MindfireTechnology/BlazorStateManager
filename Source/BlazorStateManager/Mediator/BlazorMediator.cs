@@ -2,13 +2,15 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace BlazorStateManager.Mediator
 {
 	public class BlazorMediator : IMediator
 	{
+		// TODO: We should probably use Reader/Writer Locking
+		//protected readonly ReaderWriterLockSlim TopicLock = new();
+
 		protected IList<TopicMap> Topics = new List<TopicMap>();
 		protected ILogger<BlazorMediator>? Logger { get; }
 
@@ -58,29 +60,25 @@ namespace BlazorStateManager.Mediator
 			UnSubscribeInternal(typeof(T), topic, subscriber);
 		}
 
-		public void UnSubscribeAll(object subscriber)
+		public void UnSubscribeAll(object? subscriber)
 		{
 			Logger?.LogInformation($"Unsubscribe All received from '{subscriber?.GetHashCode()}:{subscriber}'");
+
 			foreach (var topicMap in Topics)
 			{
-				topicMap.Subscribers.Where(n => n.Subscriber.IsAlive && n.Subscriber.Target == subscriber)
-					.ToList()
-					.ForEach(n => topicMap.Subscribers.Remove(n));
+				var deleteList = topicMap.Subscribers.Where(n => n.Subscriber.IsAlive && n.Subscriber.Target == subscriber).ToList();
+				deleteList.ForEach(n => topicMap.Subscribers.Remove(n));
 			}
 		}
 
 
-		protected virtual void Add(Type type, string topic, SubscriberInfo subscriberInfo)
+		protected virtual void Add(Type? type, string? topic, SubscriberInfo subscriberInfo)
 		{
-			var topicMap = Topics.SingleOrDefault(n => n.TopicString == topic && n.TopicType == type);
+			var topicMap = Topics.FirstOrDefault(n => n.TopicString == topic && n.TopicType == type);
 
 			if (topicMap == null)
 			{
-				topicMap = new TopicMap
-				{
-					TopicString = topic,
-					TopicType = type,
-				};
+				topicMap = new TopicMap(type, topic);
 
 				Topics.Add(topicMap);
 			}
@@ -88,11 +86,12 @@ namespace BlazorStateManager.Mediator
 			topicMap.Subscribers.Add(subscriberInfo);
 		}
 
-		protected virtual async Task PublishInternal(Type T, string topicString, object sender, object value)
+		protected virtual async Task PublishInternal(Type? T, string? topicString, object? sender, object? value)
 		{
 			var topicList = Topics
-				.Where(n => n.TopicString == topicString &&
-				((T == null && n.TopicType == null) || n.TopicType.IsAssignableFrom(T)));
+				.Where(n => n.TopicString == topicString /* if it's null or not */ &&
+				((T == null && n.TopicType == null) || (n.TopicType != null && n.TopicType.IsAssignableFrom(T))))
+				.ToArray();
 
 			foreach (var topic in topicList)
 			{
@@ -105,7 +104,8 @@ namespace BlazorStateManager.Mediator
 					Logger?.LogInformation(
 						$"Invoking Topic '{(topic.TopicType == null ? string.Empty : $"Type: {topic.TopicType}")} {(string.IsNullOrWhiteSpace(topic.TopicString) ? string.Empty : topic.TopicString)}' on '{subscriber?.GetHashCode()}:{subscriber}'");
 
-					await (Task)subscriber.Action.DynamicInvoke(sender, value);
+					if (subscriber != null && subscriber.Action != null)
+						await (Task)(subscriber.Action.DynamicInvoke(sender, value) ?? Task.CompletedTask);
 				}
 
 				if (deadSubscriberList.IsValueCreated)
@@ -126,10 +126,10 @@ namespace BlazorStateManager.Mediator
 			}
 		}
 
-		protected virtual void UnSubscribeInternal(Type type, string topic, object subscriber)
+		protected virtual void UnSubscribeInternal(Type? type, string? topic, object? subscriber)
 		{
 			var topicMap = Topics
-				.SingleOrDefault(n => (n.TopicString == topic) && (n.TopicType == type));
+				.FirstOrDefault(n => (n.TopicString == topic) && (n.TopicType == type));
 
 			if (topicMap != null)
 			{
@@ -143,18 +143,22 @@ namespace BlazorStateManager.Mediator
 
 		internal protected class TopicMap
 		{
-			public Type TopicType { get; set; }
-			public string TopicString { get; set; }
-			public virtual IList<SubscriberInfo> Subscribers { get; set; } = new List<SubscriberInfo>();
+			public Type? TopicType { get; set; }
+			public string? TopicString { get; set; }
+			public virtual IList<SubscriberInfo> Subscribers { get; init; } = new List<SubscriberInfo>();
+
+			public TopicMap(Type? topicType, string? topicString)
+			{
+				TopicType =	topicType;
+				TopicString = topicString;
+			}
 		}
 
 		internal protected class SubscriberInfo
 		{
 			public WeakReference Subscriber { get; set; }
-			public Delegate Action { get; set; }
-			public Type DelegateParameterType { get; set; }
-
-			public SubscriberInfo() { }
+			public Delegate? Action { get; set; }
+			public Type? DelegateParameterType { get; set; }
 
 			public SubscriberInfo(object subscriber, Type delegateParameterType, Delegate action)
 			{
