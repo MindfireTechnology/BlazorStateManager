@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
@@ -15,7 +15,7 @@
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<Company>Mindfire Technology</Company>
-		<Version>1.0.3</Version>
+		<Version>1.0.5</Version>
 		<Nullable>enable</Nullable>
 		<PackageIcon>Logo - Tall Small.png</PackageIcon>
 		<PackageReadmeFile>README.md</PackageReadmeFile>

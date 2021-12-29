@@ -8,83 +8,86 @@ using System.Web;
 using Microsoft.JSInterop;
 using Microsoft.Net.Http.Headers;
 
-namespace BlazorStateManager.StoragePersistance
+namespace BlazorStateManager.StoragePersistance;
+
+/// <summary>
+/// Stores values in the browsers cookies
+/// </summary>
+public class CookieStoragePersistance : IStoragePersistance
 {
-	/// <summary>
-	/// Stores values in the browsers cookies
-	/// </summary>
-	public class CookieStoragePersistance : IStoragePersistance
+	protected IJSRuntime Runtime { get; }
+
+	// TODO: Implement these some day
+	//public string Domain { get; set; }
+	//public string Path { get; set; }
+	//public DateTime? Expiration { get; set; }
+	//public TimeSpan? MaxAge { get; set; }
+	//public bool Secure { get; set; }
+	//public SameSiteMode SameSite { get; set; }
+
+	public CookieStoragePersistance(IJSRuntime runtime)
 	{
-		protected IJSRuntime? Runtime { get; }
+		Runtime = runtime;
+	}
 
-		// TODO: Implement these some day
-		//public string Domain { get; set; }
-		//public string Path { get; set; }
-		//public DateTime? Expiration { get; set; }
-		//public TimeSpan? MaxAge { get; set; }
-		//public bool Secure { get; set; }
-		//public SameSiteMode SameSite { get; set; }
+	public async ValueTask Store<T>(string name, T? data)
+	{
+		string storeData = JsonSerializer.Serialize(data);
 
-		//public CookieStoragePersistance(IJSRuntime? runtime)
-		//{
-		//	// If we don't get a IJSRuntime, then presumably we are running on the server and can access this cookie via HTTP headers
-		//	Runtime = runtime;
-		//}
+		if (string.IsNullOrWhiteSpace(name))
+			throw new InvalidCastException($"{nameof(name)} cannot be empty");
 
+		string cookieData = $"{SanitizeCookieName(name)}={HttpUtility.UrlEncode(storeData)}";
 
-		public async ValueTask Store<T>(string name, T data)
-		{
-			string storeData = JsonSerializer.Serialize(data);
+		// TODO: Support the settings on the cookie
 
-			if (string.IsNullOrWhiteSpace(name))
-				throw new InvalidCastException($"{nameof(name)} cannot be empty");
+		await Runtime.InvokeAsync<string>("eval", $"document.cookie='{cookieData}';");
+	}
 
-			string cookieData = $"{SanitizeCookieName(name)}={HttpUtility.UrlEncode(storeData)}";
+	public async ValueTask<T?> Retreive<T>(string name) where T : class, new()
+	{
+		string cookies = await Runtime.InvokeAsync<string>("eval", "document.cookie");
 
-			// TODO: Support the settings on the cookie
-
-			string cookies = await Runtime.InvokeAsync<string>("eval", $"document.cookie='{cookieData}';");
-		}
-
-		public async ValueTask<T> Retreive<T>(string name) where T : class, new()
-		{
-			string cookies = await Runtime.InvokeAsync<string>("eval", "document.cookie");			
-
-			if (string.IsNullOrWhiteSpace(cookies))
-				return null;
-
-			foreach (string cookie in cookies.Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries))
-			{
-				if (GetCookieName(cookie) == name)
-					return JsonSerializer.Deserialize<T>(HttpUtility.UrlDecode(GetCookieValue(cookie)));
-			}
-
+		if (string.IsNullOrWhiteSpace(cookies))
 			return null;
-		}
 
-		protected string SanitizeCookieName(string name)
+		foreach (string cookie in cookies.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
 		{
-			return name.Trim()
-				.Replace(" ", "")
-				.Replace("\t", "")
-				.Replace("\r", "")
-				.Replace("\n", "")
-				.Replace("=", "")
-				.Replace(";", "")
-				.Replace(",", "");
+			if (GetCookieName(cookie) == name)
+			{
+				string? cookieValue = GetCookieValue(cookie);
+				if (string.IsNullOrWhiteSpace(cookieValue) is not true)
+					return JsonSerializer.Deserialize<T>(HttpUtility.UrlDecode(cookieValue));
+				else
+					return null;
+			}
 		}
 
-		protected string GetCookieName(string cookie)
-		{
-			if (string.IsNullOrWhiteSpace(cookie))
-				return null;
+		return null;
+	}
 
-			return cookie.Substring(0, cookie.IndexOf('=')).Trim();
-		}
+	protected static string SanitizeCookieName(string name)
+	{
+		return name.Trim()
+			.Replace(" ", "")
+			.Replace("\t", "")
+			.Replace("\r", "")
+			.Replace("\n", "")
+			.Replace("=", "")
+			.Replace(";", "")
+			.Replace(",", "");
+	}
 
-		protected string GetCookieValue(string cookie)
-		{
-			return cookie.Substring(cookie.IndexOf('=') + 1);
-		}
+	protected static string? GetCookieName(string cookie)
+	{
+		if (string.IsNullOrWhiteSpace(cookie))
+			return null;
+
+		return cookie[..cookie.IndexOf('=')].Trim();
+	}
+
+	protected static string? GetCookieValue(string cookie)
+	{
+		return cookie?[(cookie.IndexOf('=') + 1)..];
 	}
 }
