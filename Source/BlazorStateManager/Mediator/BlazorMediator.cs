@@ -77,7 +77,7 @@ public class BlazorMediator : IMediator
 	protected virtual void Add(Type? type, string? topic, SubscriberInfo subscriberInfo)
 	{
 		TopicLock.EnterWriteLock();
-		var topicMap = Topics.SingleOrDefault(n => n.TopicString == topic && n.TopicType == type);
+		var topicMap = Topics.SingleOrDefault(n => n.TopicString == topic  /* if it's null or not */ && n.TopicType == type);
 
 		if (topicMap == null)
 		{
