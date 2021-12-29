@@ -5,4 +5,4 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-[assembly: SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "The parameters to the logging do not contain any crutial information", Scope = "type", Target = "BlazorStateManager.Mediator.BlazorMediator")]
+[assembly: SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "The parameters to the logging do not contain any crutial information", Scope = "type", Target = "T:BlazorStateManager.Mediator.BlazorMediator")]

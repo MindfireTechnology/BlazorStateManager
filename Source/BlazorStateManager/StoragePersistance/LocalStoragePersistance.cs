@@ -5,44 +5,43 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.JSInterop;
 
-namespace BlazorStateManager.StoragePersistance
+namespace BlazorStateManager.StoragePersistance;
+
+/// <summary>
+/// Stores values in the browsers local storage
+/// </summary>
+public class LocalStoragePersistance : IStoragePersistance
 {
-	/// <summary>
-	/// Stores values in the browsers local storage
-	/// </summary>
-	public class LocalStoragePersistance : IStoragePersistance
+	protected IJSRuntime? Runtime { get; }
+
+	public LocalStoragePersistance(IJSRuntime? runtime)
 	{
-		protected IJSRuntime? Runtime { get; }
+		Runtime = runtime;
+	}
 
-		public LocalStoragePersistance(IJSRuntime? runtime)
+	public ValueTask Store<T>(string name, T? data)
+	{
+		string storeData = JsonSerializer.Serialize(data);
+		if (Runtime != null)
+			return Runtime.InvokeVoidAsync("localStorage.setItem", name, storeData);
+		else
+			return ValueTask.CompletedTask;
+	}
+
+	public async ValueTask<T?> Retreive<T>(string name) where T : class, new()
+	{
+		if (Runtime != null)
 		{
-			Runtime = runtime;
-		}
+			string data = await Runtime.InvokeAsync<string>("localStorage.getItem", name);
 
-		public ValueTask Store<T>(string name, T data)
-		{
-			string storeData = JsonSerializer.Serialize(data);
-			if (Runtime != null)
-				return Runtime.InvokeVoidAsync("localStorage.setItem", name, storeData);
-			else
-				return ValueTask.CompletedTask;
-		}
-
-		public async ValueTask<T?> Retreive<T>(string name) where T : class, new()
-		{
-			if (Runtime != null)
-			{
-				string data = await Runtime.InvokeAsync<string>("localStorage.getItem", name);
-
-				if (string.IsNullOrWhiteSpace(data))
-					return null;
-
-				return JsonSerializer.Deserialize<T>(data);
-			}
-			else
-			{
+			if (string.IsNullOrWhiteSpace(data))
 				return null;
-			}
+
+			return JsonSerializer.Deserialize<T>(data);
+		}
+		else
+		{
+			return null;
 		}
 	}
 }
