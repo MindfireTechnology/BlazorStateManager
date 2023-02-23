@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace BlazorStateManager.StoragePersistance;
 
-public class SessionStoragePersistance : IStoragePersistance
+public class SessionStoragePersistance : ISessionStorage
 {
 	protected Dictionary<string, object?> State = new();
 

@@ -10,7 +10,7 @@ namespace BlazorStateManager.StoragePersistance;
 /// <summary>
 /// Stores values in the browsers local storage
 /// </summary>
-public class LocalStoragePersistance : IStoragePersistance
+public class LocalStoragePersistance : ILocalStorage
 {
 	protected IJSRuntime? Runtime { get; }
 
