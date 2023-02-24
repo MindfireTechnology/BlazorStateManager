@@ -63,96 +63,122 @@ public class BlazorMediator : IMediator
 	public void UnSubscribeAll(object? subscriber)
 	{
 		TopicLock.EnterWriteLock();
-		Logger?.LogInformation($"Unsubscribe All received from '{subscriber?.GetHashCode()}:{subscriber}'");
 
-		foreach (var topicMap in Topics)
-		{
-			var deleteList = topicMap.Subscribers.Where(n => n.Subscriber.IsAlive && n.Subscriber.Target == subscriber).ToList();
-			deleteList.ForEach(n => topicMap.Subscribers.Remove(n));
+		try { 
+			Logger?.LogInformation($"Unsubscribe All received from '{subscriber?.GetHashCode()}:{subscriber}'");
+
+			foreach (var topicMap in Topics)
+			{
+				var deleteList = topicMap.Subscribers.Where(n => n.Subscriber.IsAlive && n.Subscriber.Target == subscriber).ToList();
+				deleteList.ForEach(n => topicMap.Subscribers.Remove(n));
+			}
 		}
-		TopicLock.ExitWriteLock();
+		finally
+		{
+			TopicLock.ExitWriteLock();
+		}
 	}
 
 
 	protected virtual void Add(Type? type, string? topic, SubscriberInfo subscriberInfo)
 	{
 		TopicLock.EnterWriteLock();
-		var topicMap = Topics.SingleOrDefault(n => n.TopicString == topic  /* if it's null or not */ && n.TopicType == type);
 
-		if (topicMap == null)
-		{
-			topicMap = new TopicMap(type, topic);
+		try { 
+			var topicMap = Topics.SingleOrDefault(n => n.TopicString == topic  /* if it's null or not */ && n.TopicType == type);
 
-			Topics.Add(topicMap);
+			if (topicMap == null)
+			{
+				topicMap = new TopicMap(type, topic);
+
+				Topics.Add(topicMap);
+			}
+
+			topicMap.Subscribers.Add(subscriberInfo);
 		}
-
-		topicMap.Subscribers.Add(subscriberInfo);
-		TopicLock.ExitWriteLock();
+		finally
+		{ 
+			TopicLock.ExitWriteLock();
+		}
 	}
 
 	protected virtual async Task PublishInternal(Type? T, string? topicString, object? sender, object? value)
 	{
 		TopicLock.EnterUpgradeableReadLock();
-		var topicList = Topics
-			.Where(n => n.TopicString == topicString /* if it's null or not */ &&
-			((T == null && n.TopicType == null) || (n.TopicType != null && n.TopicType.IsAssignableFrom(T))));
+		try { 
+			var topicList = Topics
+				.Where(n => n.TopicString == topicString /* if it's null or not */ &&
+				((T == null && n.TopicType == null) || (n.TopicType != null && n.TopicType.IsAssignableFrom(T))));
 
-		List<Task> tasks = new();
+			List<Task> tasks = new();
 
-		foreach (var topic in topicList)
-		{
-			var deadSubscriberList = new Lazy<List<SubscriberInfo>>();
-
-			foreach (var subscriber in topic.Subscribers)
+			foreach (var topic in topicList)
 			{
-				if (!subscriber.Subscriber.IsAlive)
-					deadSubscriberList.Value.Add(subscriber);
+				var deadSubscriberList = new Lazy<List<SubscriberInfo>>();
 
-				Logger?.LogInformation(
-					$"Invoking Topic '{(topic.TopicType == null ? string.Empty : $"Type: {topic.TopicType}")} {(string.IsNullOrWhiteSpace(topic.TopicString) ? string.Empty : topic.TopicString)}' on '{subscriber?.GetHashCode()}:{subscriber}'");
-
-				if (subscriber != null && subscriber.Action != null)
-					tasks.Add((Task)(subscriber.Action.DynamicInvoke(sender, value) ?? Task.CompletedTask));
-			}
-
-			if (deadSubscriberList.IsValueCreated)
-			{
-				TopicLock.EnterWriteLock();
-				// Prune the list
-				foreach (var subscriber in deadSubscriberList.Value)
+				foreach (var subscriber in topic.Subscribers)
 				{
-					Logger?.LogDebug($"Pruning Dead Subscriber");
-					topic.Subscribers.Remove(subscriber);
+					if (!subscriber.Subscriber.IsAlive)
+						deadSubscriberList.Value.Add(subscriber);
+
+					Logger?.LogInformation(
+						$"Invoking Topic '{(topic.TopicType == null ? string.Empty : $"Type: {topic.TopicType}")} {(string.IsNullOrWhiteSpace(topic.TopicString) ? string.Empty : topic.TopicString)}' on '{subscriber?.GetHashCode()}:{subscriber}'");
+
+					if (subscriber != null && subscriber.Action != null)
+						tasks.Add((Task)(subscriber.Action.DynamicInvoke(sender, value) ?? Task.CompletedTask));
 				}
 
-				if (topic.Subscribers.Count == 0)
+				if (deadSubscriberList.IsValueCreated)
 				{
-					Logger?.LogDebug($"Removing Unused Topic '{(topic.TopicType == null ? string.Empty : $"Type: {topic.TopicType}")} {(string.IsNullOrWhiteSpace(topic.TopicString) ? string.Empty : topic.TopicString)}'");
-					Topics.Remove(topic);
+					TopicLock.EnterWriteLock();
+
+					try {
+						// Prune the list
+						foreach (var subscriber in deadSubscriberList.Value)
+						{
+							Logger?.LogDebug($"Pruning Dead Subscriber");
+							topic.Subscribers.Remove(subscriber);
+						}
+
+						if (topic.Subscribers.Count == 0)
+						{
+							Logger?.LogDebug($"Removing Unused Topic '{(topic.TopicType == null ? string.Empty : $"Type: {topic.TopicType}")} {(string.IsNullOrWhiteSpace(topic.TopicString) ? string.Empty : topic.TopicString)}'");
+							Topics.Remove(topic);
+						}
+					}
+					finally
+					{
+						TopicLock.ExitWriteLock();
+					}
 				}
-				TopicLock.ExitWriteLock();
 			}
+
+			await Task.WhenAll(tasks);
 		}
-		TopicLock.ExitUpgradeableReadLock();
-		await Task.WhenAll(tasks);
+		finally
+		{
+			TopicLock.ExitUpgradeableReadLock();
+		}
 	}
 
 	protected virtual void UnSubscribeInternal(Type? type, string? topic, object? subscriber)
 	{
 		TopicLock.EnterWriteLock();
-		var topicMap = Topics
-			.FirstOrDefault(n => (n.TopicString == topic) && (n.TopicType == type));
 
-		if (topicMap != null)
-		{
-			topicMap.Subscribers
-				.Where(n => n.Subscriber.IsAlive && n.Subscriber.Target == subscriber)
-				.ToList()
-				.ForEach(n => topicMap.Subscribers.Remove(n));
+		try { 
+			var topicMap = Topics
+				.FirstOrDefault(n => (n.TopicString == topic) && (n.TopicType == type));
+
+			topicMap?.Subscribers
+					.Where(n => n.Subscriber.IsAlive && n.Subscriber.Target == subscriber)
+					.ToList()
+					.ForEach(n => topicMap.Subscribers.Remove(n));
 		}
-		TopicLock.ExitWriteLock();
+		finally
+		{ 
+			TopicLock.ExitWriteLock();
+		}
 	}
-
 
 	internal protected record TopicMap
 	{
@@ -180,5 +206,4 @@ public class BlazorMediator : IMediator
 			Action = action;
 		}
 	}
-
 }
