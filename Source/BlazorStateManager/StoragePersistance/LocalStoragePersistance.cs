@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -21,11 +22,24 @@ public class LocalStoragePersistance : ILocalStorage
 
 	public ValueTask Store<T>(string name, T? data)
 	{
-		string storeData = JsonSerializer.Serialize(data);
 		if (Runtime != null)
-			return Runtime.InvokeVoidAsync("localStorage.setItem", name, storeData);
+		{
+			try
+			{
+				string storeData = JsonSerializer.Serialize(data);
+				return Runtime.InvokeVoidAsync("localStorage.setItem", name, storeData);				
+			}
+			catch (Exception ex)
+			{
+				Trace.TraceError(ex.ToString());
+				return ValueTask.CompletedTask;
+			}
+		}
 		else
+		{
+			Trace.TraceWarning("No JavaScript runtime available");
 			return ValueTask.CompletedTask;
+		}
 	}
 
 	public async ValueTask<T?> Retreive<T>(string name) where T : class, new()
