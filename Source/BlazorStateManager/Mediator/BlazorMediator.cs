@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace BlazorStateManager.Mediator;
 
-public class BlazorMediator : IMediator
+public partial class BlazorMediator : IMediator
 {
 	protected readonly ReaderWriterLockSlim TopicLock = new();
 
@@ -20,6 +20,7 @@ public class BlazorMediator : IMediator
 	}
 
 
+	// Subscribe
 	public void Subscribe<T>(object subscriber, AsyncHandler<T> handler)
 	{
 		Add(typeof(T), null, new SubscriberInfo(subscriber, typeof(T), handler));
@@ -33,7 +34,7 @@ public class BlazorMediator : IMediator
 	}
 
 
-
+	// Publish
 	public async Task Publish<T>(object sender, T? value)
 	{
 		Logger?.LogInformation($"Publish received from '{sender?.GetHashCode()}:{sender}' For Type '{typeof(T).Name}'");
@@ -47,7 +48,7 @@ public class BlazorMediator : IMediator
 	}
 
 
-
+	// Unsuscribe
 	public void UnSubscribe<T>(object subscriber)
 	{
 		Logger?.LogInformation($"Unsubscribe received from '{subscriber?.GetHashCode()}:{subscriber}' For Type '{typeof(T).Name}'");
@@ -64,10 +65,11 @@ public class BlazorMediator : IMediator
 	{
 		TopicLock.EnterWriteLock();
 
-		try { 
+		try
+		{
 			Logger?.LogInformation($"Unsubscribe All received from '{subscriber?.GetHashCode()}:{subscriber}'");
 
-			foreach (var topicMap in Topics)
+			foreach (var topicMap in Topics.ToArray())
 			{
 				var deleteList = topicMap.Subscribers.Where(n => n.Subscriber.IsAlive && n.Subscriber.Target == subscriber).ToList();
 				deleteList.ForEach(n => topicMap.Subscribers.Remove(n));
@@ -84,7 +86,8 @@ public class BlazorMediator : IMediator
 	{
 		TopicLock.EnterWriteLock();
 
-		try { 
+		try
+		{
 			var topicMap = Topics.SingleOrDefault(n => n.TopicString == topic  /* if it's null or not */ && n.TopicType == type);
 
 			if (topicMap == null)
@@ -97,7 +100,7 @@ public class BlazorMediator : IMediator
 			topicMap.Subscribers.Add(subscriberInfo);
 		}
 		finally
-		{ 
+		{
 			TopicLock.ExitWriteLock();
 		}
 	}
@@ -108,7 +111,8 @@ public class BlazorMediator : IMediator
 		try { 
 			var topicList = Topics
 				.Where(n => n.TopicString == topicString /* if it's null or not */ &&
-				((T == null && n.TopicType == null) || (n.TopicType != null && n.TopicType.IsAssignableFrom(T))));
+				((T == null && n.TopicType == null) || (n.TopicType != null && n.TopicType.IsAssignableFrom(T))))
+				.ToArray();
 
 			List<Task> tasks = new();
 
@@ -116,7 +120,7 @@ public class BlazorMediator : IMediator
 			{
 				var deadSubscriberList = new Lazy<List<SubscriberInfo>>();
 
-				foreach (var subscriber in topic.Subscribers)
+				foreach (var subscriber in topic.Subscribers.ToArray())
 				{
 					if (!subscriber.Subscriber.IsAlive)
 						deadSubscriberList.Value.Add(subscriber);
@@ -132,7 +136,8 @@ public class BlazorMediator : IMediator
 				{
 					TopicLock.EnterWriteLock();
 
-					try {
+					try
+					{
 						// Prune the list
 						foreach (var subscriber in deadSubscriberList.Value)
 						{
@@ -165,7 +170,8 @@ public class BlazorMediator : IMediator
 	{
 		TopicLock.EnterWriteLock();
 
-		try { 
+		try
+		{
 			var topicMap = Topics
 				.FirstOrDefault(n => (n.TopicString == topic) && (n.TopicType == type));
 
@@ -175,35 +181,8 @@ public class BlazorMediator : IMediator
 					.ForEach(n => topicMap.Subscribers.Remove(n));
 		}
 		finally
-		{ 
+		{
 			TopicLock.ExitWriteLock();
-		}
-	}
-
-	internal protected record TopicMap
-	{
-		public Type? TopicType { get; init; }
-		public string? TopicString { get; init; }
-		public virtual IList<SubscriberInfo> Subscribers { get; } = new List<SubscriberInfo>();
-
-		public TopicMap(Type? topicType, string? topicString)
-		{
-			TopicType = topicType;
-			TopicString = topicString;
-		}
-	}
-
-	internal protected record SubscriberInfo
-	{
-		public WeakReference Subscriber { get; init; }
-		public Delegate? Action { get; init; }
-		public Type? DelegateParameterType { get; init; }
-
-		public SubscriberInfo(object subscriber, Type delegateParameterType, Delegate action)
-		{
-			Subscriber = new WeakReference(subscriber);
-			DelegateParameterType = delegateParameterType;
-			Action = action;
 		}
 	}
 }
