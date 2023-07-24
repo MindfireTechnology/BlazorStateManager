@@ -9,8 +9,6 @@ namespace BlazorStateManager.Mediator;
 
 public partial class BlazorMediator : IMediator
 {
-	protected readonly ReaderWriterLockSlim TopicLock = new();
-
 	protected IList<TopicMap> Topics = new List<TopicMap>();
 	protected ILogger<BlazorMediator>? Logger { get; }
 
@@ -63,10 +61,8 @@ public partial class BlazorMediator : IMediator
 
 	public void UnSubscribeAll(object? subscriber)
 	{
-		TopicLock.EnterWriteLock();
-
-		try
-		{
+		lock (Topics)
+		{ 
 			Logger?.LogInformation($"Unsubscribe All received from '{subscriber?.GetHashCode()}:{subscriber}'");
 
 			foreach (var topicMap in Topics.ToArray())
@@ -75,20 +71,14 @@ public partial class BlazorMediator : IMediator
 				deleteList.ForEach(n => topicMap.Subscribers.Remove(n));
 			}
 		}
-		finally
-		{
-			TopicLock.ExitWriteLock();
-		}
 	}
 
 
 	protected virtual void Add(Type? type, string? topic, SubscriberInfo subscriberInfo)
 	{
-		TopicLock.EnterWriteLock();
-
-		try
-		{
-			var topicMap = Topics.SingleOrDefault(n => n.TopicString == topic  /* if it's null or not */ && n.TopicType == type);
+		lock (Topics)
+		{ 
+			var topicMap = Topics.SingleOrDefault(n => n.TopicString == topic /* if it's null or not */ && n.TopicType == type);
 
 			if (topicMap == null)
 			{
@@ -99,22 +89,19 @@ public partial class BlazorMediator : IMediator
 
 			topicMap.Subscribers.Add(subscriberInfo);
 		}
-		finally
-		{
-			TopicLock.ExitWriteLock();
-		}
 	}
 
 	protected virtual async Task PublishInternal(Type? T, string? topicString, object? sender, object? value)
 	{
-		TopicLock.EnterUpgradeableReadLock();
-		try { 
+		List<Task> tasks = new();
+
+		lock (Topics)
+		{
 			var topicList = Topics
 				.Where(n => n.TopicString == topicString /* if it's null or not */ &&
 				((T == null && n.TopicType == null) || (n.TopicType != null && n.TopicType.IsAssignableFrom(T))))
 				.ToArray();
 
-			List<Task> tasks = new();
 
 			foreach (var topic in topicList)
 			{
@@ -134,43 +121,36 @@ public partial class BlazorMediator : IMediator
 
 				if (deadSubscriberList.IsValueCreated)
 				{
-					TopicLock.EnterWriteLock();
-
-					try
+					// Prune the list
+					foreach (var subscriber in deadSubscriberList.Value)
 					{
-						// Prune the list
-						foreach (var subscriber in deadSubscriberList.Value)
-						{
-							Logger?.LogDebug($"Pruning Dead Subscriber");
-							topic.Subscribers.Remove(subscriber);
-						}
-
-						if (topic.Subscribers.Count == 0)
-						{
-							Logger?.LogDebug($"Removing Unused Topic '{(topic.TopicType == null ? string.Empty : $"Type: {topic.TopicType}")} {(string.IsNullOrWhiteSpace(topic.TopicString) ? string.Empty : topic.TopicString)}'");
-							Topics.Remove(topic);
-						}
+						Logger?.LogDebug($"Pruning Dead Subscriber");
+						topic.Subscribers.Remove(subscriber);
 					}
-					finally
+
+					if (topic.Subscribers.Count == 0)
 					{
-						TopicLock.ExitWriteLock();
+						Logger?.LogDebug($"Removing Unused Topic '{(topic.TopicType == null ? string.Empty : $"Type: {topic.TopicType}")} {(string.IsNullOrWhiteSpace(topic.TopicString) ? string.Empty : topic.TopicString)}'");
+						Topics.Remove(topic);
 					}
 				}
 			}
+		}
 
+		// Wait for all the tasks to complete -- just make sure we're not locked while we do it
+		try
+		{
 			await Task.WhenAll(tasks);
 		}
-		finally
+		catch (Exception ex)
 		{
-			TopicLock.ExitUpgradeableReadLock();
+			Logger?.LogError(ex, "Error awaiting Publish Actions");
 		}
 	}
 
 	protected virtual void UnSubscribeInternal(Type? type, string? topic, object? subscriber)
 	{
-		TopicLock.EnterWriteLock();
-
-		try
+		lock (Topics)
 		{
 			var topicMap = Topics
 				.FirstOrDefault(n => (n.TopicString == topic) && (n.TopicType == type));
@@ -179,10 +159,6 @@ public partial class BlazorMediator : IMediator
 					.Where(n => n.Subscriber.IsAlive && n.Subscriber.Target == subscriber)
 					.ToList()
 					.ForEach(n => topicMap.Subscribers.Remove(n));
-		}
-		finally
-		{
-			TopicLock.ExitWriteLock();
 		}
 	}
 }
