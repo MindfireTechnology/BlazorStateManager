@@ -13,32 +13,24 @@ namespace BlazorStateManager.StoragePersistance;
 /// </summary>
 public class LocalStoragePersistance : ILocalStorage
 {
-	protected IJSRuntime? Runtime { get; }
+	protected IJSRuntime Runtime { get; }
 
-	public LocalStoragePersistance(IJSRuntime? runtime)
+	public LocalStoragePersistance(IJSRuntime runtime)
 	{
+		ArgumentNullException.ThrowIfNull(runtime, nameof(runtime));
 		Runtime = runtime;
 	}
 
-	public ValueTask Store<T>(string name, T? data)
+	public async ValueTask Store<T>(string name, T? data)
 	{
-		if (Runtime != null)
+		try
 		{
-			try
-			{
-				string storeData = JsonSerializer.Serialize(data);
-				return Runtime.InvokeVoidAsync("localStorage.setItem", name, storeData);				
-			}
-			catch (Exception ex)
-			{
-				Trace.TraceError(ex.ToString());
-				return ValueTask.CompletedTask;
-			}
+			string storeData = JsonSerializer.Serialize(data);
+			await Runtime.InvokeVoidAsync("localStorage.setItem", name, storeData);				
 		}
-		else
+		catch (Exception ex)
 		{
-			Trace.TraceWarning("No JavaScript runtime available");
-			return ValueTask.CompletedTask;
+			Trace.TraceError(ex.ToString());
 		}
 	}
 
@@ -46,12 +38,19 @@ public class LocalStoragePersistance : ILocalStorage
 	{
 		if (Runtime != null)
 		{
+			try {
 			string data = await Runtime.InvokeAsync<string>("localStorage.getItem", name);
 
 			if (string.IsNullOrWhiteSpace(data))
 				return null;
 
-			return JsonSerializer.Deserialize<T>(data);
+				return JsonSerializer.Deserialize<T>(data);
+			}
+			catch (Exception ex)
+			{
+				Trace.TraceError(ex.ToString());
+				return null;
+			}
 		}
 		else
 		{

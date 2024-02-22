@@ -27,6 +27,7 @@ public class CookieStoragePersistance : IStoragePersistance
 
 	public CookieStoragePersistance(IJSRuntime runtime)
 	{
+		ArgumentNullException.ThrowIfNull(runtime, nameof(runtime));
 		Runtime = runtime;
 	}
 
