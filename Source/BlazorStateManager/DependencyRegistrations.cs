@@ -20,8 +20,8 @@ public static class DependencyRegistrations
 	public static void AddBlazorStateManagerServices<TStorage>(this IServiceCollection services) where TStorage : IStoragePersistance
 	{
 		services.AddSingleton<IMediator, BlazorMediator>();
-		services.AddSingleton<IStateManager, StateManager>();
+		services.AddScoped<IStateManager, StateManager>();
 
-		services.AddSingleton(typeof(IStoragePersistance), typeof(TStorage));
+		services.AddScoped(typeof(IStoragePersistance), typeof(TStorage));
 	}
 }
