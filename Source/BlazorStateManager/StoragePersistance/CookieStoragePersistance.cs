@@ -1,19 +1,14 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.JSInterop;
-using Microsoft.Net.Http.Headers;
 
 namespace BlazorStateManager.StoragePersistance;
 
 /// <summary>
 /// Stores values in the browsers cookies
 /// </summary>
-public class CookieStoragePersistance : IStoragePersistance
+public class CookieStoragePersistance : JsInteropStoragePersistance, IStoragePersistance
 {
 	protected IJSRuntime Runtime { get; }
 
@@ -31,21 +26,19 @@ public class CookieStoragePersistance : IStoragePersistance
 		Runtime = runtime;
 	}
 
-	public async ValueTask Store<T>(string name, T? data)
+	protected override async ValueTask StoreInBrowserAsync(string name, string json)
 	{
-		string storeData = JsonSerializer.Serialize(data);
-
 		if (string.IsNullOrWhiteSpace(name))
 			throw new InvalidCastException($"{nameof(name)} cannot be empty");
 
-		string cookieData = $"{SanitizeCookieName(name)}={HttpUtility.UrlEncode(storeData)}";
+		string cookieData = $"{SanitizeCookieName(name)}={HttpUtility.UrlEncode(json)}";
 
 		// TODO: Support the settings on the cookie
 
 		await Runtime.InvokeAsync<string>("eval", $"document.cookie='{cookieData}';");
 	}
 
-	public async ValueTask<T?> Retreive<T>(string name) where T : class, new()
+	protected override async ValueTask<string?> RetrieveFromBrowserAsync(string name)
 	{
 		string cookies = await Runtime.InvokeAsync<string>("eval", "document.cookie");
 
@@ -58,7 +51,7 @@ public class CookieStoragePersistance : IStoragePersistance
 			{
 				string? cookieValue = GetCookieValue(cookie);
 				if (string.IsNullOrWhiteSpace(cookieValue) is not true)
-					return JsonSerializer.Deserialize<T>(HttpUtility.UrlDecode(cookieValue));
+					return HttpUtility.UrlDecode(cookieValue);
 				else
 					return null;
 			}

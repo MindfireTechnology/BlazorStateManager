@@ -1,14 +1,10 @@
-using Microsoft.JSInterop;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.JSInterop;
 
 namespace BlazorStateManager.StoragePersistance;
 
-public class SessionStoragePersistance : ISessionStorage
+public class SessionStoragePersistance : JsInteropStoragePersistance, ISessionStorage
 {
 	protected IJSRuntime Runtime { get; }
 
@@ -18,34 +14,12 @@ public class SessionStoragePersistance : ISessionStorage
 		Runtime = runtime;
 	}
 
-	public async ValueTask Store<T>(string name, T? data)
+	protected override ValueTask StoreInBrowserAsync(string name, string json)
+		=> Runtime.InvokeVoidAsync("sessionStorage.setItem", name, json);
+
+	protected override async ValueTask<string?> RetrieveFromBrowserAsync(string name)
 	{
-		try
-		{
-			string storeData = JsonSerializer.Serialize(data);
-			await Runtime.InvokeVoidAsync("sessionStorage.setItem", name, storeData);
-		}
-		catch (Exception ex)
-		{
-			Trace.TraceError(ex.ToString());
-		}
+		string? data = await Runtime.InvokeAsync<string>("sessionStorage.getItem", name);
+		return string.IsNullOrWhiteSpace(data) ? null : data;
 	}
-
-	public async ValueTask<T?> Retreive<T>(string name) where T : class, new()
-	{
-		try { 
-		string data = await Runtime.InvokeAsync<string>("sessionStorage.getItem", name);
-
-		if (string.IsNullOrWhiteSpace(data))
-			return null;
-
-		return JsonSerializer.Deserialize<T>(data);
-		}
-		catch (Exception ex)
-		{
-			Trace.TraceError(ex.ToString());
-			return null;
-		}
-	}
-
 }

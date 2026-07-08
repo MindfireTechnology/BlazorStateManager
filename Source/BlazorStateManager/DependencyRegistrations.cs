@@ -14,9 +14,9 @@ public static class DependencyRegistrations
 	/// <summary>
 	/// Register the types required to run BlazorStateManager
 	/// </summary>
-	/// <typeparam name="TStorage">The type of storage persistance to use. There are three built-in types: CookieStoragePersistance, LocalStorageStoragePersistance, and SessionStoragePersistance</typeparam>
+	/// <typeparam name="TStorage">The type of storage persistance to use. Built-in types: CookieStoragePersistance, LocalStoragePersistance, SessionStoragePersistance, MemoryStoragePersistance, and PersistentStoragePersistance</typeparam>
 	/// <param name="services">The IServicesCollection to configure</param>
-	/// <remarks>Both the CookieStoragePersistance and the LocalStoragePersistance require the IJSInterop to work correctly</remarks>
+	/// <remarks>CookieStoragePersistance, LocalStoragePersistance, and SessionStoragePersistance require IJSRuntime and fall back to in-memory storage during SSR prerender. MemoryStoragePersistance requires no JS interop. PersistentStoragePersistance bridges SSR prerender state to interactive render via PersistentComponentState.</remarks>
 	public static void AddBlazorStateManagerServices<TStorage>(this IServiceCollection services) where TStorage : IStoragePersistance
 	{
 		services.AddSingleton<IMediator, BlazorMediator>();

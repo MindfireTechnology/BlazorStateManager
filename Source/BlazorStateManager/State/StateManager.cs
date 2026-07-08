@@ -47,7 +47,7 @@ public class StateManager : IStateManager
 	public async Task CommitState<T>(T? value)
 	{
 		string fullName = typeof(T).FullName ?? throw new InvalidOperationException("The type of value must exist");
-		await CommitState(fullName, value);
+		await Store.Store(fullName, value);
 		await Mediator.Publish(this, value);
 	}
 
